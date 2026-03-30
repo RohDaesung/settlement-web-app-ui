@@ -118,8 +118,8 @@ function ui(locale: Locale) {
     imageType: locale === 'ko' ? '이미지' : '图片',
     cancel: locale === 'ko' ? '취소' : '取消',
     create: locale === 'ko' ? '생성' : '创建',
-    removeImage: locale === 'ko' ? '이미지 삭제' : '删除图片',
-    uploadImage: locale === 'ko' ? '이미지 업로드' : '上传图片',
+    removeImage: locale === 'ko' ? '삭제' : '删除图片',
+    uploadImage: locale === 'ko' ? '업로드' : '上传图片',
     imageUploadingNow: locale === 'ko' ? '업로드중...' : '上传中...',
     addRowNeedBrand:
       locale === 'ko'
