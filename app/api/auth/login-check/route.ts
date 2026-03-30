@@ -27,8 +27,23 @@ export async function POST(req: Request) {
       .maybeSingle()
 
     if (error) {
+      console.error('login-check supabase error:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+      })
+
       return NextResponse.json(
-        { error: '계정 확인 중 오류가 발생했습니다.' },
+        {
+          error: '계정 확인 중 오류가 발생했습니다.',
+          debug: {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code,
+          },
+        },
         { status: 500 }
       )
     }
@@ -47,10 +62,16 @@ export async function POST(req: Request) {
       role: profile.role,
     })
   } catch (error) {
-    console.error('login-check error:', error)
+    console.error('login-check route error:', error)
 
     return NextResponse.json(
-      { error: '계정 확인 중 오류가 발생했습니다.' },
+      {
+        error: '계정 확인 중 오류가 발생했습니다.',
+        debug:
+          error instanceof Error
+            ? { message: error.message, stack: error.stack }
+            : String(error),
+      },
       { status: 500 }
     )
   }
