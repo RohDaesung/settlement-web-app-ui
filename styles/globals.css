@@ -1,0 +1,57 @@
+@import 'tailwindcss';
+
+:root {
+  --spacing: 0.25rem;
+  --background: hsl(0 0% 100%);
+  --foreground: hsl(0 0% 9.02%);
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(0 0% 9.02%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(0 0% 9.02%);
+  --primary: hsl(0 0% 13%);
+  --primary-foreground: hsl(0 0% 98.5%);
+  --secondary: hsl(0 0% 97%);
+  --secondary-foreground: hsl(0 0% 13%);
+  --muted: hsl(0 0% 97%);
+  --muted-foreground: hsl(0 0% 55.6%);
+  --accent: hsl(0 0% 97%);
+  --accent-foreground: hsl(0 0% 13%);
+  --destructive: hsl(0 84.1% 60.2%);
+  --destructive-foreground: hsl(0 0% 98.5%);
+  --border: hsl(0 0% 92.2%);
+  --input: hsl(0 0% 92.2%);
+  --ring: hsl(0 0% 70.8%);
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: hsl(0 0% 13%);
+  --foreground: hsl(0 0% 98.5%);
+  --card: hsl(0 0% 13%);
+  --card-foreground: hsl(0 0% 98.5%);
+  --popover: hsl(0 0% 13%);
+  --popover-foreground: hsl(0 0% 98.5%);
+  --primary: hsl(0 0% 98.5%);
+  --primary-foreground: hsl(0 0% 13%);
+  --secondary: hsl(0 0% 26.9%);
+  --secondary-foreground: hsl(0 0% 98.5%);
+  --muted: hsl(0 0% 26.9%);
+  --muted-foreground: hsl(0 0% 70.8%);
+  --accent: hsl(0 0% 26.9%);
+  --accent-foreground: hsl(0 0% 98.5%);
+  --destructive: hsl(0 62.8% 50.6%);
+  --destructive-foreground: hsl(0 0% 98.5%);
+  --border: hsl(0 0% 26.9%);
+  --input: hsl(0 0% 26.9%);
+  --ring: hsl(0 0% 43.9%);
+  --radius: 0.5rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
