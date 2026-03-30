@@ -20,33 +20,21 @@ export async function POST(req: Request) {
 
     const trimmedUsername = username.trim()
 
-    const { data: profile, error } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('id, username, role, status')
       .eq('username', trimmedUsername)
-      .maybeSingle()
+      .limit(1)
 
     if (error) {
-      console.error('login-check supabase error:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code,
-      })
-
+      console.error('login-check supabase error:', error)
       return NextResponse.json(
-        {
-          error: '계정 확인 중 오류가 발생했습니다.',
-          debug: {
-            message: error.message,
-            details: error.details,
-            hint: error.hint,
-            code: error.code,
-          },
-        },
+        { error: `계정 확인 중 오류가 발생했습니다: ${error.message}` },
         { status: 500 }
       )
     }
+
+    const profile = data?.[0]
 
     if (!profile) {
       return NextResponse.json({
@@ -62,15 +50,14 @@ export async function POST(req: Request) {
       role: profile.role,
     })
   } catch (error) {
-    console.error('login-check route error:', error)
+    console.error('login-check error:', error)
 
     return NextResponse.json(
       {
-        error: '계정 확인 중 오류가 발생했습니다.',
-        debug:
+        error:
           error instanceof Error
-            ? { message: error.message, stack: error.stack }
-            : String(error),
+            ? `계정 확인 중 오류가 발생했습니다: ${error.message}`
+            : '계정 확인 중 오류가 발생했습니다.',
       },
       { status: 500 }
     )
