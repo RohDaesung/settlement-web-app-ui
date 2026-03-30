@@ -1,8 +1,10 @@
+export const runtime = 'nodejs'
+
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
@@ -27,7 +29,13 @@ export async function POST(req: Request) {
       .limit(1)
 
     if (error) {
-      console.error('login-check supabase error:', error)
+      console.error('login-check supabase error:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+      })
+
       return NextResponse.json(
         { error: `계정 확인 중 오류가 발생했습니다: ${error.message}` },
         { status: 500 }
