@@ -8,8 +8,8 @@ const geist = Geist({ subsets: ["latin"] });
 const geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: '정산 관리 시스템',
-  description: '생산 정산 관리용 내부 시스템',
+  title: 'Khan 출고 관리',
+  description: 'Khan Apparel 내부 시스템',
   generator: 'v0.app',
   icons: {
     icon: [

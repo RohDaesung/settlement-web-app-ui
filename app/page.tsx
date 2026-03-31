@@ -324,7 +324,7 @@ export default function HomePage() {
       return '출고관리 페이지에 접근할 수 있으며 수정 및 삭제가 가능합니다.'
     }
 
-    return '출고관리 페이지에 접근할 수 있으며 조회만 가능합니다.'
+    return ''
   }, [profile])
 
   if (authLoading && !profile) {
@@ -1345,7 +1345,7 @@ export default function HomePage() {
               <div className="menu-grid">
                 {profile.role === 'admin' && (
                   <div className="admin-menu-grid">
-                    <button className="primary-btn" onClick={handleMoveSettlement}>
+                    {/* <button className="primary-btn" onClick={handleMoveSettlement}>
                       정산표 이동
                     </button>
 
@@ -1354,7 +1354,7 @@ export default function HomePage() {
                       onClick={handleMoveMarginAnalysis}
                     >
                       마진분석 이동
-                    </button>
+                    </button> */}
 
                     <button className="primary-btn" onClick={handleMoveShipment}>
                       출고관리 이동
@@ -1392,7 +1392,7 @@ export default function HomePage() {
                   {profile.role === 'manager' &&
                     '부운영자는 출고관리 페이지에 접근할 수 있으며 수정 및 삭제가 가능합니다.'}
                   {profile.role === 'buyer' &&
-                    '바이어는 자기 브랜드 기준으로 출고관리 페이지를 조회할 수 있습니다.'}
+                    '바이어는 출고관리 페이지를 조회할 수 있습니다.'}
                 </div>
               </div>
             </div>
