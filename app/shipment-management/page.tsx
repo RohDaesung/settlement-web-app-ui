@@ -1528,6 +1528,29 @@ export default function ShipmentManagementPage() {
                     </td>
                   </tr>
                 )}
+
+                {canManage && selectedBrandId !== 'ALL' && (
+                  <tr>
+                    <td
+                      colSpan={
+                        sortedColumns.length +
+                        2 +
+                        (showBrandColumn ? 1 : 0) +
+                        (canManage ? 1 : 0)
+                      }
+                      className="border-t border-[#d7cec1] bg-[#f9f6f1] px-4 py-6"
+                    >
+                      <button
+                        type="button"
+                        onClick={addRow}
+                        className="flex w-full items-center justify-center gap-2 border border-dashed border-[#cfc6b8] bg-white py-4 text-sm font-medium text-[#3c342c] transition hover:bg-[#f7f2eb]"
+                      >
+                        <Plus className="h-4 w-4" />
+                        {t.addRow}
+                      </button>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
