@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { diffWordsWithSpace } from 'diff'
 import { supabase } from '@/lib/supabase/client'
 
 import {
@@ -66,7 +67,18 @@ type Cell = {
   updated_at?: string
 }
 
+type CellSnapshot = {
+  id?: string
+  row_id: string
+  column_id: string
+  snapshot_date: string
+  value: string | null
+  created_at?: string
+  updated_at?: string
+}
+
 const STORAGE_BUCKET = 'shipment-images'
+const SNAPSHOT_TABLE = 'shipment_cell_daily_snapshots'
 const AUTO_SAVE_MS = 1200
 const DEFAULT_TEXT_WIDTH = 180
 const DEFAULT_IMAGE_WIDTH = 220
@@ -182,6 +194,7 @@ function ui(locale: Locale) {
         : 'Storage bucket 不存在或无法访问。',
     previewImage: locale === 'ko' ? '이미지 크게 보기' : '查看大图',
     close: locale === 'ko' ? '닫기' : '关闭',
+    clickToEdit: locale === 'ko' ? '클릭하여 수정' : '点击编辑',
   }
 }
 
@@ -226,6 +239,36 @@ function autoResizeTextarea(el: HTMLTextAreaElement | null) {
   el.style.height = `${Math.max(56, el.scrollHeight)}px`
 }
 
+function getKstDateString() {
+  const now = new Date()
+  const utc = now.getTime() + now.getTimezoneOffset() * 60 * 1000
+  const kst = new Date(utc + 9 * 60 * 60 * 1000)
+  return kst.toISOString().slice(0, 10)
+}
+
+function diffHighlightedParts(oldText: string, newText: string) {
+  const parts = diffWordsWithSpace(oldText || '', newText || '')
+
+  return parts.map((part, index) => {
+    if (part.added) {
+      return (
+        <mark
+          key={index}
+          className="rounded-[2px] bg-[#fff0a8] px-[1px] text-[#2f2a24]"
+        >
+          {part.value}
+        </mark>
+      )
+    }
+
+    if (part.removed) {
+      return null
+    }
+
+    return <span key={index}>{part.value}</span>
+  })
+}
+
 export default function ShipmentManagementPage() {
   const router = useRouter()
 
@@ -242,6 +285,7 @@ export default function ShipmentManagementPage() {
   const [columns, setColumns] = useState<Column[]>([])
   const [rows, setRows] = useState<Row[]>([])
   const [cells, setCells] = useState<Cell[]>([])
+  const [cellSnapshots, setCellSnapshots] = useState<CellSnapshot[]>([])
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<FilterType>('전체')
@@ -257,6 +301,7 @@ export default function ShipmentManagementPage() {
   const [uploadingCellKey, setUploadingCellKey] = useState<string | null>(null)
   const [draggingRowId, setDraggingRowId] = useState<string | null>(null)
   const [draggingColumnId, setDraggingColumnId] = useState<string | null>(null)
+  const [editingCellKey, setEditingCellKey] = useState<string | null>(null)
 
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null)
 
@@ -287,6 +332,8 @@ export default function ShipmentManagementPage() {
       ? t.totalView
       : selectedBrandObject?.name || buyerName
 
+  const todaySnapshotDate = useMemo(() => getKstDateString(), [])
+
   const brandMap = useMemo(() => {
     return brands.reduce<Record<string, string>>((acc, brand) => {
       acc[brand.id] = brand.name
@@ -305,6 +352,17 @@ export default function ShipmentManagementPage() {
   const getCellValue = (rowId: string, columnId: string) => {
     return (
       cells.find((c) => c.row_id === rowId && c.column_id === columnId)?.value || ''
+    )
+  }
+
+  const getBaselineValue = (rowId: string, columnId: string) => {
+    return (
+      cellSnapshots.find(
+        (s) =>
+          s.row_id === rowId &&
+          s.column_id === columnId &&
+          s.snapshot_date === todaySnapshotDate
+      )?.value || ''
     )
   }
 
@@ -368,6 +426,86 @@ export default function ShipmentManagementPage() {
     })
   }, [filteredRowsKey(sortedRows), filteredColumnsKey(sortedColumns), cells])
 
+  const ensureTodaySnapshots = async (
+    loadedCells: Cell[],
+    visibleRows: Row[],
+    visibleColumns: Column[]
+  ) => {
+    const targetColumns = visibleColumns.filter((column) => column.column_type === 'text')
+    const targetPairs = visibleRows.flatMap((row) =>
+      targetColumns.map((column) => ({
+        row_id: row.id,
+        column_id: column.id,
+      }))
+    )
+
+    if (targetPairs.length === 0) {
+      setCellSnapshots([])
+      return
+    }
+
+    const rowIds = [...new Set(targetPairs.map((item) => item.row_id))]
+    const columnIds = [...new Set(targetPairs.map((item) => item.column_id))]
+
+    const { data: existingSnapshots, error: snapshotLoadError } = await supabase
+      .from(SNAPSHOT_TABLE)
+      .select('*')
+      .eq('snapshot_date', todaySnapshotDate)
+      .in('row_id', rowIds)
+      .in('column_id', columnIds)
+
+    if (snapshotLoadError) {
+      console.error('snapshot load error:', snapshotLoadError)
+      setCellSnapshots([])
+      return
+    }
+
+    const existing = (existingSnapshots || []) as CellSnapshot[]
+    const existingKeys = new Set(
+      existing.map(
+        (item) =>
+          `${item.row_id}__${item.column_id}__${item.snapshot_date}`
+      )
+    )
+
+    const cellMap = new Map(
+      loadedCells.map((cell) => [`${cell.row_id}__${cell.column_id}`, cell.value || ''])
+    )
+
+    const missingPayload = targetPairs
+      .filter(
+        (pair) =>
+          !existingKeys.has(
+            `${pair.row_id}__${pair.column_id}__${todaySnapshotDate}`
+          )
+      )
+      .map((pair) => ({
+        row_id: pair.row_id,
+        column_id: pair.column_id,
+        snapshot_date: todaySnapshotDate,
+        value: cellMap.get(`${pair.row_id}__${pair.column_id}`) || '',
+      }))
+
+    let inserted: CellSnapshot[] = []
+
+    if (missingPayload.length > 0) {
+      const { data: insertedData, error: snapshotInsertError } = await supabase
+        .from(SNAPSHOT_TABLE)
+        .upsert(missingPayload, {
+          onConflict: 'row_id,column_id,snapshot_date',
+        })
+        .select('*')
+
+      if (snapshotInsertError) {
+        console.error('snapshot insert error:', snapshotInsertError)
+      } else {
+        inserted = (insertedData || []) as CellSnapshot[]
+      }
+    }
+
+    setCellSnapshots([...existing, ...inserted])
+  }
+
   const loadPageData = async (
     profileRole: RoleType,
     profileBrandId: string | null,
@@ -418,7 +556,21 @@ export default function ShipmentManagementPage() {
     if (colError) console.error('column load error:', colError)
     if (rowError) console.error('row load error:', rowError)
 
-    const rowIds = (rowData || []).map((row) => row.id)
+    const preparedColumns = ((colData || []) as Column[]).map((column) => ({
+      ...column,
+      width:
+        column.width ||
+        (column.column_type === 'image' ? DEFAULT_IMAGE_WIDTH : DEFAULT_TEXT_WIDTH),
+      min_width:
+        column.min_width ||
+        (column.column_type === 'image' ? MIN_IMAGE_WIDTH : MIN_TEXT_WIDTH),
+    }))
+
+    const preparedRows = ((rowData || []) as Row[]).sort(
+      (a, b) => a.sort_order - b.sort_order
+    )
+
+    const rowIds = preparedRows.map((row) => row.id)
 
     let loadedCells: Cell[] = []
     if (rowIds.length > 0) {
@@ -436,20 +588,11 @@ export default function ShipmentManagementPage() {
 
     isHydratingRef.current = true
 
-    setColumns(
-      ((colData || []) as Column[]).map((column) => ({
-        ...column,
-        width:
-          column.width ||
-          (column.column_type === 'image' ? DEFAULT_IMAGE_WIDTH : DEFAULT_TEXT_WIDTH),
-        min_width:
-          column.min_width ||
-          (column.column_type === 'image' ? MIN_IMAGE_WIDTH : MIN_TEXT_WIDTH),
-      }))
-    )
-
-    setRows(((rowData || []) as Row[]).sort((a, b) => a.sort_order - b.sort_order))
+    setColumns(preparedColumns)
+    setRows(preparedRows)
     setCells(loadedCells)
+
+    await ensureTodaySnapshots(loadedCells, preparedRows, preparedColumns)
 
     requestAnimationFrame(() => {
       isHydratingRef.current = false
@@ -789,6 +932,9 @@ export default function ShipmentManagementPage() {
       normalizeSortOrder(prev.filter((row) => row.id !== rowId))
     )
     setCells((prev) => prev.filter((cell) => cell.row_id !== rowId))
+    setCellSnapshots((prev) =>
+      prev.filter((snapshot) => snapshot.row_id !== rowId)
+    )
   }
 
   const deleteColumn = async (columnId: string) => {
@@ -820,6 +966,9 @@ export default function ShipmentManagementPage() {
       normalizeSortOrder(prev.filter((col) => col.id !== columnId))
     )
     setCells((prev) => prev.filter((cell) => cell.column_id !== columnId))
+    setCellSnapshots((prev) =>
+      prev.filter((snapshot) => snapshot.column_id !== columnId)
+    )
   }
 
   const removeImage = async (rowId: string, columnId: string) => {
@@ -1353,8 +1502,10 @@ export default function ShipmentManagementPage() {
 
                     {sortedColumns.map((column) => {
                       const value = getCellValue(row.id, column.id)
+                      const baselineValue = getBaselineValue(row.id, column.id)
                       const cellKey = `${row.id}_${column.id}`
                       const isUploading = uploadingCellKey === cellKey
+                      const isEditing = editingCellKey === cellKey
 
                       if (column.column_type === 'image') {
                         return (
@@ -1445,23 +1596,44 @@ export default function ShipmentManagementPage() {
                           key={column.id}
                           className="border-r border-b border-[#e3dbcf] p-0 align-top"
                         >
-                          <textarea
-                            ref={(el) => {
-                              textareaRefs.current[cellKey] = el
-                              autoResizeTextarea(el)
-                            }}
-                            value={value}
-                            readOnly={!canManage}
-                            spellCheck={false}
-                            onChange={(e) => {
-                              setCellValue(row.id, column.id, e.target.value)
-                              autoResizeTextarea(e.currentTarget)
-                            }}
-                            className={`block w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-2 text-sm leading-5 text-[#3f382f] outline-none ${
-                              canManage ? 'focus:bg-[#fffdf9]' : ''
-                            }`}
-                            style={{ minHeight: 56 }}
-                          />
+                          {canManage && isEditing ? (
+                            <textarea
+                              ref={(el) => {
+                                textareaRefs.current[cellKey] = el
+                                autoResizeTextarea(el)
+                              }}
+                              value={value}
+                              spellCheck={false}
+                              onChange={(e) => {
+                                setCellValue(row.id, column.id, e.target.value)
+                                autoResizeTextarea(e.currentTarget)
+                              }}
+                              onBlur={() => setEditingCellKey(null)}
+                              autoFocus
+                              className="block w-full resize-none overflow-hidden border-0 bg-[#fffdf9] px-2 py-2 text-sm leading-5 text-[#3f382f] outline-none"
+                              style={{ minHeight: 56 }}
+                            />
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (canManage) {
+                                  setEditingCellKey(cellKey)
+                                }
+                              }}
+                              title={canManage ? t.clickToEdit : undefined}
+                              className={`block w-full px-2 py-2 text-left text-sm leading-5 text-[#3f382f] outline-none ${
+                                canManage ? 'cursor-text' : 'cursor-default'
+                              }`}
+                              style={{
+                                minHeight: 56,
+                                whiteSpace: 'pre-wrap',
+                                wordBreak: 'break-word',
+                              }}
+                            >
+                              {diffHighlightedParts(baselineValue, value)}
+                            </button>
+                          )}
                         </td>
                       )
                     })}
