@@ -1378,7 +1378,13 @@ export default function ShipmentManagementPage() {
         </div>
 
         <div className="border border-[#d7cec1] bg-white">
-          <div className="overflow-x-auto">
+          <div
+            className="overflow-x-auto overflow-y-visible"
+            style={{
+              WebkitOverflowScrolling: 'touch',
+              touchAction: 'pan-x pinch-zoom',
+            }}
+          >
             <table className="w-full min-w-[1600px] table-fixed border-collapse">
               <colgroup>
                 {showBrandColumn && <col style={{ width: '160px' }} />}
