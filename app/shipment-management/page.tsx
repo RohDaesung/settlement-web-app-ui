@@ -13,6 +13,7 @@ import {
   Image as ImageIcon,
   Loader2,
   Package,
+  Package2,
   Plus,
   Save,
   Search,
@@ -99,6 +100,7 @@ function ui(locale: Locale) {
     save: locale === 'ko' ? '저장' : '保存',
     delete: locale === 'ko' ? '삭제' : '删除',
     back: locale === 'ko' ? '돌아가기' : '返回',
+    dailyShipment: locale === 'ko' ? '일일 출고 수량' : '每日出货数量',
     searchPlaceholder:
       locale === 'ko'
         ? '품번, 내용, 비고, 출고일정 검색'
@@ -325,6 +327,7 @@ export default function ShipmentManagementPage() {
   const showBrandFilter = isAdmin || isManager
   const showBrandColumn = (isAdmin || isManager) && selectedBrandId === 'ALL'
   const showLocaleSwitcher = !isBuyer
+  const showDailyShipmentButton = true
 
   const selectedBrandObject = brands.find((b) => b.id === selectedBrandId)
   const selectedBrandName =
@@ -1170,7 +1173,9 @@ export default function ShipmentManagementPage() {
                     {selectedBrandName} {t.pageTitle}
                   </h1>
 
-                  {!isBuyer && (
+                  {isBuyer ? (
+                    <p className="mt-2 text-sm text-[#756c61]">{t.buyerGuide}</p>
+                  ) : (
                     <>
                       <p className="mt-2 text-sm text-[#756c61]">{t.pageSubtitle}</p>
                       <div className="mt-3 flex flex-wrap gap-4 text-xs text-[#8b7f72]">
@@ -1238,10 +1243,21 @@ export default function ShipmentManagementPage() {
                       </select>
                     </div>
                   )}
+
+                  {!canManage && showDailyShipmentButton && (
+                    <button
+                      type="button"
+                      onClick={() => router.push('/daily-shipment')}
+                      className="inline-flex h-11 items-center justify-center gap-2 border border-[#cfc6b8] bg-white px-4 text-sm font-medium text-[#3c342c] transition hover:bg-[#f7f2eb]"
+                    >
+                      <Package2 className="h-4 w-4" />
+                      {t.dailyShipment}
+                    </button>
+                  )}
                 </div>
 
                 {canManage && (
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
                     <button
                       type="button"
                       onClick={addRow}
@@ -1258,6 +1274,15 @@ export default function ShipmentManagementPage() {
                     >
                       <Plus className="h-4 w-4" />
                       {t.addColumn}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => router.push('/daily-shipment')}
+                      className="inline-flex h-11 items-center justify-center gap-2 border border-[#cfc6b8] bg-white px-4 text-sm font-medium text-[#3c342c] transition hover:bg-[#f7f2eb]"
+                    >
+                      <Package2 className="h-4 w-4" />
+                      {t.dailyShipment}
                     </button>
 
                     <button
