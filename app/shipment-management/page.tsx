@@ -21,6 +21,8 @@ import {
   Upload,
   X,
   Expand,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react'
 
 type Locale = 'ko' | 'zh'
@@ -86,6 +88,11 @@ const DEFAULT_IMAGE_WIDTH = 220
 const MIN_TEXT_WIDTH = 120
 const MIN_IMAGE_WIDTH = 180
 
+const MOBILE_INITIAL_ZOOM = 0.4
+const MOBILE_MIN_ZOOM = 0.3
+const MOBILE_MAX_ZOOM = 1
+const MOBILE_ZOOM_STEP = 0.1
+
 function ui(locale: Locale) {
   return {
     pageTitle: locale === 'ko' ? '출고 관리' : '出货管理',
@@ -122,7 +129,7 @@ function ui(locale: Locale) {
     buyerGuide:
       locale === 'ko'
         ? '브랜드별 출고 내용을 확인할 수 있습니다.'
-        : '可以查看品牌出货内容。',
+        : '可以查看品牌出货 내용。',
     loading: locale === 'ko' ? '불러오는 중...' : '加载中...',
     addColumnTitle: locale === 'ko' ? '새 열 추가' : '新增列',
     labelKo: locale === 'ko' ? '한국어 이름' : '韩文名称',
@@ -197,6 +204,9 @@ function ui(locale: Locale) {
     previewImage: locale === 'ko' ? '이미지 크게 보기' : '查看大图',
     close: locale === 'ko' ? '닫기' : '关闭',
     clickToEdit: locale === 'ko' ? '클릭하여 수정' : '点击编辑',
+    zoomIn: locale === 'ko' ? '확대' : '放大',
+    zoomOut: locale === 'ko' ? '축소' : '缩小',
+    zoomReset: locale === 'ko' ? '기본크기' : '默认大小',
   }
 }
 
@@ -306,6 +316,9 @@ export default function ShipmentManagementPage() {
   const [editingCellKey, setEditingCellKey] = useState<string | null>(null)
 
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null)
+
+  const [isMobileView, setIsMobileView] = useState(false)
+  const [mobileZoom, setMobileZoom] = useState(1)
 
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
   const textareaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({})
@@ -428,6 +441,48 @@ export default function ShipmentManagementPage() {
       autoResizeTextarea(textareaRefs.current[key])
     })
   }, [filteredRowsKey(sortedRows), filteredColumnsKey(sortedColumns), cells])
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 640px)')
+
+    const applyMobileState = (matches: boolean) => {
+      setIsMobileView(matches)
+      setMobileZoom(matches ? MOBILE_INITIAL_ZOOM : 1)
+    }
+
+    applyMobileState(mediaQuery.matches)
+
+    const handleChange = (e: MediaQueryListEvent) => {
+      applyMobileState(e.matches)
+    }
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', handleChange)
+      return () => mediaQuery.removeEventListener('change', handleChange)
+    }
+
+    mediaQuery.addListener(handleChange)
+    return () => mediaQuery.removeListener(handleChange)
+  }, [])
+
+  const zoomOutMobile = () => {
+    if (!isMobileView) return
+    setMobileZoom((prev) =>
+      Number(Math.max(MOBILE_MIN_ZOOM, prev - MOBILE_ZOOM_STEP).toFixed(2))
+    )
+  }
+
+  const zoomInMobile = () => {
+    if (!isMobileView) return
+    setMobileZoom((prev) =>
+      Number(Math.min(MOBILE_MAX_ZOOM, prev + MOBILE_ZOOM_STEP).toFixed(2))
+    )
+  }
+
+  const resetMobileZoom = () => {
+    if (!isMobileView) return
+    setMobileZoom(MOBILE_INITIAL_ZOOM)
+  }
 
   const ensureTodaySnapshots = async (
     loadedCells: Cell[],
@@ -779,21 +834,10 @@ export default function ShipmentManagementPage() {
       }
     } catch (error: any) {
       console.error('save error raw:', error)
-      console.error('save error parsed:', {
-        message: error?.message,
-        details: error?.details,
-        hint: error?.hint,
-        code: error?.code,
-        status: error?.status,
-        name: error?.name,
-      })
-
       setSaveState('error')
 
       const errorMessage =
         error?.message ||
-        error?.details ||
-        error?.hint ||
         'unknown save error'
 
       if (!silent) {
@@ -1013,16 +1057,7 @@ export default function ShipmentManagementPage() {
 
       if (uploadError) {
         const parsedUploadError = uploadError as any
-
         console.error('upload error raw:', uploadError)
-        console.error('upload error parsed:', {
-          message: parsedUploadError?.message,
-          details: parsedUploadError?.details,
-          hint: parsedUploadError?.hint,
-          statusCode: parsedUploadError?.statusCode,
-          error: parsedUploadError?.error,
-        })
-
         const message = uploadError?.message || ''
 
         if (message.toLowerCase().includes('bucket not found')) {
@@ -1257,7 +1292,37 @@ export default function ShipmentManagementPage() {
                 </div>
 
                 {canManage && (
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-5">
+                    {isMobileView && (
+                      <div className="grid grid-cols-3 gap-2 sm:hidden">
+                        <button
+                          type="button"
+                          onClick={zoomOutMobile}
+                          className="inline-flex h-11 items-center justify-center gap-2 border border-[#cfc6b8] bg-white px-3 text-sm font-medium text-[#3c342c] transition hover:bg-[#f7f2eb]"
+                        >
+                          <Minimize2 className="h-4 w-4" />
+                          {t.zoomOut}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={resetMobileZoom}
+                          className="inline-flex h-11 items-center justify-center gap-2 border border-[#cfc6b8] bg-white px-3 text-sm font-medium text-[#3c342c] transition hover:bg-[#f7f2eb]"
+                        >
+                          <span>{Math.round(mobileZoom * 100)}%</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={zoomInMobile}
+                          className="inline-flex h-11 items-center justify-center gap-2 border border-[#cfc6b8] bg-white px-3 text-sm font-medium text-[#3c342c] transition hover:bg-[#f7f2eb]"
+                        >
+                          <Maximize2 className="h-4 w-4" />
+                          {t.zoomIn}
+                        </button>
+                      </div>
+                    )}
+
                     <button
                       type="button"
                       onClick={addRow}
@@ -1377,9 +1442,22 @@ export default function ShipmentManagementPage() {
           </div>
         </div>
 
-        <div className="border border-[#d7cec1] bg-white">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1600px] table-fixed border-collapse">
+        <div className="border border-[#d7cec1] bg-white overflow-hidden shadow-sm">
+          <div
+            className="overflow-x-auto touch-pan-x touch-pan-y"
+            style={{
+              WebkitOverflowScrolling: 'touch',
+              scrollbarWidth: 'thin',
+            }}
+          >
+            <table
+              className="w-full min-w-[1400px] sm:min-w-[1600px] table-fixed border-collapse transition-all duration-300 origin-top-left"
+              style={{
+                transform: `scale(${isMobileView ? mobileZoom : 1})`,
+                width: `${isMobileView ? 100 / mobileZoom : 100}%`,
+                marginBottom: isMobileView ? `-${(1 - mobileZoom) * 100}%` : '0',
+              }}
+            >
               <colgroup>
                 {showBrandColumn && <col style={{ width: '160px' }} />}
                 <col style={{ width: '60px' }} />
