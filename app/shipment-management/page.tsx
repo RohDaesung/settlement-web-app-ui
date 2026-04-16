@@ -89,7 +89,7 @@ const MIN_TEXT_WIDTH = 120
 const MIN_IMAGE_WIDTH = 180
 
 const MOBILE_INITIAL_ZOOM = 0.4
-const MOBILE_MIN_ZOOM = 0.3
+const MOBILE_MIN_ZOOM = 0.4
 const MOBILE_MAX_ZOOM = 1
 const MOBILE_ZOOM_STEP = 0.1
 
@@ -206,7 +206,6 @@ function ui(locale: Locale) {
     clickToEdit: locale === 'ko' ? '클릭하여 수정' : '点击编辑',
     zoomIn: locale === 'ko' ? '확대' : '放大',
     zoomOut: locale === 'ko' ? '축소' : '缩小',
-    zoomReset: locale === 'ko' ? '기본크기' : '默认大小',
   }
 }
 
@@ -316,7 +315,6 @@ export default function ShipmentManagementPage() {
   const [editingCellKey, setEditingCellKey] = useState<string | null>(null)
 
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null)
-
   const [isMobileView, setIsMobileView] = useState(false)
   const [mobileZoom, setMobileZoom] = useState(1)
 
@@ -349,6 +347,8 @@ export default function ShipmentManagementPage() {
       : selectedBrandObject?.name || buyerName
 
   const todaySnapshotDate = useMemo(() => getKstDateString(), [])
+
+  const mobileZoomPercent = `${Math.round(mobileZoom * 100)}%`
 
   const brandMap = useMemo(() => {
     return brands.reduce<Record<string, string>>((acc, brand) => {
@@ -443,17 +443,17 @@ export default function ShipmentManagementPage() {
   }, [filteredRowsKey(sortedRows), filteredColumnsKey(sortedColumns), cells])
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(max-width: 640px)')
+    const mediaQuery = window.matchMedia('(max-width: 639px)')
 
-    const applyMobileState = (matches: boolean) => {
+    const applyState = (matches: boolean) => {
       setIsMobileView(matches)
       setMobileZoom(matches ? MOBILE_INITIAL_ZOOM : 1)
     }
 
-    applyMobileState(mediaQuery.matches)
+    applyState(mediaQuery.matches)
 
     const handleChange = (e: MediaQueryListEvent) => {
-      applyMobileState(e.matches)
+      applyState(e.matches)
     }
 
     if (typeof mediaQuery.addEventListener === 'function') {
@@ -1056,7 +1056,6 @@ export default function ShipmentManagementPage() {
         })
 
       if (uploadError) {
-        const parsedUploadError = uploadError as any
         console.error('upload error raw:', uploadError)
         const message = uploadError?.message || ''
 
@@ -1292,37 +1291,7 @@ export default function ShipmentManagementPage() {
                 </div>
 
                 {canManage && (
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-5">
-                    {isMobileView && (
-                      <div className="grid grid-cols-3 gap-2 sm:hidden">
-                        <button
-                          type="button"
-                          onClick={zoomOutMobile}
-                          className="inline-flex h-11 items-center justify-center gap-2 border border-[#cfc6b8] bg-white px-3 text-sm font-medium text-[#3c342c] transition hover:bg-[#f7f2eb]"
-                        >
-                          <Minimize2 className="h-4 w-4" />
-                          {t.zoomOut}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={resetMobileZoom}
-                          className="inline-flex h-11 items-center justify-center gap-2 border border-[#cfc6b8] bg-white px-3 text-sm font-medium text-[#3c342c] transition hover:bg-[#f7f2eb]"
-                        >
-                          <span>{Math.round(mobileZoom * 100)}%</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={zoomInMobile}
-                          className="inline-flex h-11 items-center justify-center gap-2 border border-[#cfc6b8] bg-white px-3 text-sm font-medium text-[#3c342c] transition hover:bg-[#f7f2eb]"
-                        >
-                          <Maximize2 className="h-4 w-4" />
-                          {t.zoomIn}
-                        </button>
-                      </div>
-                    )}
-
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
                     <button
                       type="button"
                       onClick={addRow}
@@ -1442,392 +1411,427 @@ export default function ShipmentManagementPage() {
           </div>
         </div>
 
-        <div className="border border-[#d7cec1] bg-white overflow-hidden shadow-sm">
+        <div className="border border-[#d7cec1] bg-white shadow-sm">
+          {isMobileView && (
+            <div className="border-b border-[#e7dfd2] bg-[#faf7f2] px-3 py-2 sm:hidden">
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={zoomOutMobile}
+                  disabled={mobileZoom <= MOBILE_MIN_ZOOM}
+                  className="inline-flex h-9 items-center justify-center gap-1 border border-[#cfc6b8] bg-white px-3 text-xs font-medium text-[#3c342c] transition hover:bg-[#f7f2eb] disabled:opacity-40"
+                >
+                  <Minimize2 className="h-3.5 w-3.5" />
+                  {t.zoomOut}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={resetMobileZoom}
+                  className="inline-flex h-9 items-center justify-center border border-[#cfc6b8] bg-white px-3 text-xs font-medium text-[#3c342c] transition hover:bg-[#f7f2eb]"
+                >
+                  {mobileZoomPercent}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={zoomInMobile}
+                  disabled={mobileZoom >= MOBILE_MAX_ZOOM}
+                  className="inline-flex h-9 items-center justify-center gap-1 border border-[#cfc6b8] bg-white px-3 text-xs font-medium text-[#3c342c] transition hover:bg-[#f7f2eb] disabled:opacity-40"
+                >
+                  <Maximize2 className="h-3.5 w-3.5" />
+                  {t.zoomIn}
+                </button>
+              </div>
+            </div>
+          )}
+
           <div
-            className="overflow-x-auto touch-pan-x touch-pan-y"
+            className="overflow-x-auto overflow-y-hidden touch-pan-x touch-pan-y"
             style={{
               WebkitOverflowScrolling: 'touch',
               scrollbarWidth: 'thin',
             }}
           >
-            <table
-              className="w-full min-w-[1400px] sm:min-w-[1600px] table-fixed border-collapse transition-all duration-300 origin-top-left"
+            <div
               style={{
-                transform: `scale(${isMobileView ? mobileZoom : 1})`,
-                width: `${isMobileView ? 100 / mobileZoom : 100}%`,
-                marginBottom: isMobileView ? `-${(1 - mobileZoom) * 100}%` : '0',
+                width: isMobileView ? `${100 / mobileZoom}%` : '100%',
+                transform: isMobileView ? `scale(${mobileZoom})` : 'none',
+                transformOrigin: 'top left',
               }}
             >
-              <colgroup>
-                {showBrandColumn && <col style={{ width: '160px' }} />}
-                <col style={{ width: '60px' }} />
-                {sortedColumns.map((column) => (
-                  <col
-                    key={column.id}
-                    style={{
-                      width: `${
-                        column.width ||
-                        (column.column_type === 'image'
-                          ? DEFAULT_IMAGE_WIDTH
-                          : DEFAULT_TEXT_WIDTH)
-                      }px`,
-                    }}
-                  />
-                ))}
-                <col style={{ width: '130px' }} />
-                {canManage && <col style={{ width: '180px' }} />}
-              </colgroup>
-
-              <thead>
-                <tr className="bg-[#efe7dc]">
-                  {showBrandColumn && (
-                    <th className="border-b border-r border-[#d7cec1] px-3 py-4 text-center text-sm font-semibold text-[#2f2a24]">
-                      {t.brand}
-                    </th>
-                  )}
-
-                  <th className="border-b border-r border-[#d7cec1] px-2 py-4 text-center text-sm font-semibold text-[#2f2a24]">
-                    #
-                  </th>
-
+              <table className="w-full min-w-[1400px] sm:min-w-[1600px] table-fixed border-collapse">
+                <colgroup>
+                  {showBrandColumn && <col style={{ width: '160px' }} />}
+                  <col style={{ width: '60px' }} />
                   {sortedColumns.map((column) => (
-                    <th
+                    <col
                       key={column.id}
-                      onDragOver={(e) => {
-                        if (canManage && draggingColumnId) e.preventDefault()
+                      style={{
+                        width: `${
+                          column.width ||
+                          (column.column_type === 'image'
+                            ? DEFAULT_IMAGE_WIDTH
+                            : DEFAULT_TEXT_WIDTH)
+                        }px`,
                       }}
-                      onDrop={() => handleColumnDrop(column.id)}
-                      className={`relative border-b border-r border-[#d7cec1] bg-[#efe7dc] px-2 py-3 text-center text-sm font-semibold text-[#2f2a24] ${
-                        draggingColumnId === column.id ? 'opacity-50' : ''
-                      }`}
-                    >
-                      <div className="flex items-center justify-center gap-2 pr-3">
-                        {canManage && (
-                          <button
-                            type="button"
-                            draggable
-                            onDragStart={(e) => {
-                              e.stopPropagation()
-                              setDraggingColumnId(column.id)
-                            }}
-                            onDragEnd={() => setDraggingColumnId(null)}
-                            className="cursor-grab text-[#8f8376] active:cursor-grabbing"
-                            aria-label="column-drag-handle"
-                          >
-                            <GripVertical className="h-4 w-4" />
-                          </button>
-                        )}
-
-                        <span>
-                          {locale === 'ko' ? column.label_ko : column.label_zh}
-                        </span>
-
-                        {column.column_type === 'image' && (
-                          <ImageIcon className="h-4 w-4 text-[#8f8376]" />
-                        )}
-
-                        {canManage && !column.is_system && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              deleteColumn(column.id)
-                            }}
-                            className="inline-flex h-7 w-7 items-center justify-center border border-[#d7cec1] bg-white text-[#9f3e32] transition hover:bg-[#fff7f6]"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                      </div>
-
-                      {canManage && (
-                        <div
-                          onMouseDown={(e) => startResizeColumn(e, column)}
-                          className="absolute right-0 top-0 h-full w-2 cursor-col-resize bg-transparent"
-                        />
-                      )}
-                    </th>
+                    />
                   ))}
+                  <col style={{ width: '130px' }} />
+                  {canManage && <col style={{ width: '180px' }} />}
+                </colgroup>
 
-                  <th className="border-b border-r border-[#d7cec1] px-3 py-4 text-center text-sm font-semibold text-[#2f2a24]">
-                    {t.status}
-                  </th>
-
-                  {canManage && (
-                    <th className="border-b border-[#d7cec1] px-3 py-4 text-center text-sm font-semibold text-[#2f2a24]">
-                      {t.manage}
-                    </th>
-                  )}
-                </tr>
-              </thead>
-
-              <tbody>
-                {filteredRows.map((row, rowIndex) => (
-                  <tr
-                    key={row.id}
-                    onDragOver={(e) => {
-                      if (canManage && draggingRowId) e.preventDefault()
-                    }}
-                    onDrop={() => handleRowDrop(row.id)}
-                    className={`${
-                      rowIndex % 2 === 0 ? 'bg-white' : 'bg-[#fcfaf7]'
-                    } ${draggingRowId === row.id ? 'opacity-50' : ''}`}
-                  >
+                <thead>
+                  <tr className="bg-[#efe7dc]">
                     {showBrandColumn && (
-                      <td className="border-r border-b border-[#e3dbcf] px-3 py-3 align-top text-sm text-[#4a433b]">
-                        {row.brand_id ? brandMap[row.brand_id] || '-' : '-'}
-                      </td>
+                      <th className="border-b border-r border-[#d7cec1] px-3 py-4 text-center text-sm font-semibold text-[#2f2a24]">
+                        {t.brand}
+                      </th>
                     )}
 
-                    <td className="border-r border-b border-[#e3dbcf] p-2 align-top">
-                      <div className="flex min-h-[56px] items-start justify-center pt-2">
-                        {canManage ? (
-                          <button
-                            type="button"
-                            draggable
-                            onDragStart={(e) => {
-                              e.stopPropagation()
-                              setDraggingRowId(row.id)
-                            }}
-                            onDragEnd={() => setDraggingRowId(null)}
-                            className="cursor-grab text-[#8f8376] active:cursor-grabbing"
-                            aria-label="row-drag-handle"
-                          >
-                            <GripVertical className="h-5 w-5" />
-                          </button>
-                        ) : (
-                          <span className="pt-1 text-xs text-[#8f8376]">
-                            {rowIndex + 1}
+                    <th className="border-b border-r border-[#d7cec1] px-2 py-4 text-center text-sm font-semibold text-[#2f2a24]">
+                      #
+                    </th>
+
+                    {sortedColumns.map((column) => (
+                      <th
+                        key={column.id}
+                        onDragOver={(e) => {
+                          if (canManage && draggingColumnId) e.preventDefault()
+                        }}
+                        onDrop={() => handleColumnDrop(column.id)}
+                        className={`relative border-b border-r border-[#d7cec1] bg-[#efe7dc] px-2 py-3 text-center text-sm font-semibold text-[#2f2a24] ${
+                          draggingColumnId === column.id ? 'opacity-50' : ''
+                        }`}
+                      >
+                        <div className="flex items-center justify-center gap-2 pr-3">
+                          {canManage && (
+                            <button
+                              type="button"
+                              draggable
+                              onDragStart={(e) => {
+                                e.stopPropagation()
+                                setDraggingColumnId(column.id)
+                              }}
+                              onDragEnd={() => setDraggingColumnId(null)}
+                              className="cursor-grab text-[#8f8376] active:cursor-grabbing"
+                              aria-label="column-drag-handle"
+                            >
+                              <GripVertical className="h-4 w-4" />
+                            </button>
+                          )}
+
+                          <span>
+                            {locale === 'ko' ? column.label_ko : column.label_zh}
                           </span>
+
+                          {column.column_type === 'image' && (
+                            <ImageIcon className="h-4 w-4 text-[#8f8376]" />
+                          )}
+
+                          {canManage && !column.is_system && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                deleteColumn(column.id)
+                              }}
+                              className="inline-flex h-7 w-7 items-center justify-center border border-[#d7cec1] bg-white text-[#9f3e32] transition hover:bg-[#fff7f6]"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+
+                        {canManage && (
+                          <div
+                            onMouseDown={(e) => startResizeColumn(e, column)}
+                            className="absolute right-0 top-0 h-full w-2 cursor-col-resize bg-transparent"
+                          />
                         )}
-                      </div>
-                    </td>
+                      </th>
+                    ))}
 
-                    {sortedColumns.map((column) => {
-                      const value = getCellValue(row.id, column.id)
-                      const baselineValue = getBaselineValue(row.id, column.id)
-                      const cellKey = `${row.id}_${column.id}`
-                      const isUploading = uploadingCellKey === cellKey
-                      const isEditing = editingCellKey === cellKey
+                    <th className="border-b border-r border-[#d7cec1] px-3 py-4 text-center text-sm font-semibold text-[#2f2a24]">
+                      {t.status}
+                    </th>
 
-                      if (column.column_type === 'image') {
+                    {canManage && (
+                      <th className="border-b border-[#d7cec1] px-3 py-4 text-center text-sm font-semibold text-[#2f2a24]">
+                        {t.manage}
+                      </th>
+                    )}
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {filteredRows.map((row, rowIndex) => (
+                    <tr
+                      key={row.id}
+                      onDragOver={(e) => {
+                        if (canManage && draggingRowId) e.preventDefault()
+                      }}
+                      onDrop={() => handleRowDrop(row.id)}
+                      className={`${
+                        rowIndex % 2 === 0 ? 'bg-white' : 'bg-[#fcfaf7]'
+                      } ${draggingRowId === row.id ? 'opacity-50' : ''}`}
+                    >
+                      {showBrandColumn && (
+                        <td className="border-r border-b border-[#e3dbcf] px-3 py-3 align-top text-sm text-[#4a433b]">
+                          {row.brand_id ? brandMap[row.brand_id] || '-' : '-'}
+                        </td>
+                      )}
+
+                      <td className="border-r border-b border-[#e3dbcf] p-2 align-top">
+                        <div className="flex min-h-[56px] items-start justify-center pt-2">
+                          {canManage ? (
+                            <button
+                              type="button"
+                              draggable
+                              onDragStart={(e) => {
+                                e.stopPropagation()
+                                setDraggingRowId(row.id)
+                              }}
+                              onDragEnd={() => setDraggingRowId(null)}
+                              className="cursor-grab text-[#8f8376] active:cursor-grabbing"
+                              aria-label="row-drag-handle"
+                            >
+                              <GripVertical className="h-5 w-5" />
+                            </button>
+                          ) : (
+                            <span className="pt-1 text-xs text-[#8f8376]">
+                              {rowIndex + 1}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {sortedColumns.map((column) => {
+                        const value = getCellValue(row.id, column.id)
+                        const baselineValue = getBaselineValue(row.id, column.id)
+                        const cellKey = `${row.id}_${column.id}`
+                        const isUploading = uploadingCellKey === cellKey
+                        const isEditing = editingCellKey === cellKey
+
+                        if (column.column_type === 'image') {
+                          return (
+                            <td
+                              key={column.id}
+                              className="border-r border-b border-[#e3dbcf] p-2 align-top"
+                            >
+                              <div className="flex flex-col gap-2">
+                                <div className="group relative flex h-[190px] w-full items-center justify-center overflow-hidden border border-[#ddd3c5] bg-[#f8f6f1]">
+                                  {value ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => setImagePreviewUrl(value)}
+                                        className="absolute inset-0 z-10 cursor-zoom-in"
+                                        aria-label={t.previewImage}
+                                      />
+                                      <img
+                                        src={value}
+                                        alt={t.imageAlt}
+                                        className="h-full w-full object-contain"
+                                      />
+                                      <div className="pointer-events-none absolute right-2 top-2 flex h-9 w-9 items-center justify-center border border-white/60 bg-black/45 text-white opacity-0 transition group-hover:opacity-100">
+                                        <Expand className="h-4 w-4" />
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <div className="flex h-full w-full items-center justify-center text-sm text-[#aaa092]">
+                                      {t.noImage}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {canManage && (
+                                  <>
+                                    <input
+                                      ref={(el) => {
+                                        fileInputRefs.current[cellKey] = el
+                                      }}
+                                      type="file"
+                                      accept="image/*"
+                                      className="hidden"
+                                      onChange={async (e) => {
+                                        const input = e.currentTarget
+                                        const file = input.files?.[0] || null
+                                        input.value = ''
+                                        await handleImageUpload(row.id, column.id, file)
+                                      }}
+                                    />
+
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          fileInputRefs.current[cellKey]?.click()
+                                        }
+                                        disabled={isUploading}
+                                        className="inline-flex h-9 items-center justify-center gap-2 border border-[#d7cec1] bg-white px-3 text-sm font-medium text-[#3c342c] transition hover:bg-[#f7f2eb] disabled:opacity-50"
+                                      >
+                                        {isUploading ? (
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                          <Upload className="h-4 w-4" />
+                                        )}
+                                        {isUploading
+                                          ? t.imageUploadingNow
+                                          : t.uploadImage}
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => removeImage(row.id, column.id)}
+                                        className="inline-flex h-9 items-center justify-center gap-2 border border-[#d7cec1] bg-white px-3 text-sm font-medium text-[#3c342c] transition hover:bg-[#fff7f6]"
+                                      >
+                                        <X className="h-4 w-4" />
+                                        {t.removeImage}
+                                      </button>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          )
+                        }
+
                         return (
                           <td
                             key={column.id}
-                            className="border-r border-b border-[#e3dbcf] p-2 align-top"
+                            className="border-r border-b border-[#e3dbcf] p-0 align-top"
                           >
-                            <div className="flex flex-col gap-2">
-                              <div className="group relative flex h-[190px] w-full items-center justify-center overflow-hidden border border-[#ddd3c5] bg-[#f8f6f1]">
-                                {value ? (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={() => setImagePreviewUrl(value)}
-                                      className="absolute inset-0 z-10 cursor-zoom-in"
-                                      aria-label={t.previewImage}
-                                    />
-                                    <img
-                                      src={value}
-                                      alt={t.imageAlt}
-                                      className="h-full w-full object-contain"
-                                    />
-                                    <div className="pointer-events-none absolute right-2 top-2 flex h-9 w-9 items-center justify-center border border-white/60 bg-black/45 text-white opacity-0 transition group-hover:opacity-100">
-                                      <Expand className="h-4 w-4" />
-                                    </div>
-                                  </>
-                                ) : (
-                                  <div className="flex h-full w-full items-center justify-center text-sm text-[#aaa092]">
-                                    {t.noImage}
-                                  </div>
-                                )}
-                              </div>
-
-                              {canManage && (
-                                <>
-                                  <input
-                                    ref={(el) => {
-                                      fileInputRefs.current[cellKey] = el
-                                    }}
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={async (e) => {
-                                      const input = e.currentTarget
-                                      const file = input.files?.[0] || null
-                                      input.value = ''
-                                      await handleImageUpload(row.id, column.id, file)
-                                    }}
-                                  />
-
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        fileInputRefs.current[cellKey]?.click()
-                                      }
-                                      disabled={isUploading}
-                                      className="inline-flex h-9 items-center justify-center gap-2 border border-[#d7cec1] bg-white px-3 text-sm font-medium text-[#3c342c] transition hover:bg-[#f7f2eb] disabled:opacity-50"
-                                    >
-                                      {isUploading ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                      ) : (
-                                        <Upload className="h-4 w-4" />
-                                      )}
-                                      {isUploading
-                                        ? t.imageUploadingNow
-                                        : t.uploadImage}
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      onClick={() => removeImage(row.id, column.id)}
-                                      className="inline-flex h-9 items-center justify-center gap-2 border border-[#d7cec1] bg-white px-3 text-sm font-medium text-[#3c342c] transition hover:bg-[#fff7f6]"
-                                    >
-                                      <X className="h-4 w-4" />
-                                      {t.removeImage}
-                                    </button>
-                                  </div>
-                                </>
-                              )}
-                            </div>
+                            {canManage && isEditing ? (
+                              <textarea
+                                ref={(el) => {
+                                  textareaRefs.current[cellKey] = el
+                                  autoResizeTextarea(el)
+                                }}
+                                value={value}
+                                spellCheck={false}
+                                onChange={(e) => {
+                                  setCellValue(row.id, column.id, e.target.value)
+                                  autoResizeTextarea(e.currentTarget)
+                                }}
+                                onBlur={() => setEditingCellKey(null)}
+                                autoFocus
+                                className="block w-full resize-none overflow-hidden border-0 bg-[#fffdf9] px-2 py-2 text-sm leading-5 text-[#3f382f] outline-none"
+                                style={{ minHeight: 56 }}
+                              />
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (canManage) {
+                                    setEditingCellKey(cellKey)
+                                  }
+                                }}
+                                title={canManage ? t.clickToEdit : undefined}
+                                className={`block w-full px-2 py-2 text-left text-sm leading-5 text-[#3f382f] outline-none ${
+                                  canManage ? 'cursor-text' : 'cursor-default'
+                                }`}
+                                style={{
+                                  minHeight: 56,
+                                  whiteSpace: 'pre-wrap',
+                                  wordBreak: 'break-word',
+                                }}
+                              >
+                                {diffHighlightedParts(baselineValue, value)}
+                              </button>
+                            )}
                           </td>
                         )
-                      }
+                      })}
 
-                      return (
-                        <td
-                          key={column.id}
-                          className="border-r border-b border-[#e3dbcf] p-0 align-top"
-                        >
-                          {canManage && isEditing ? (
-                            <textarea
-                              ref={(el) => {
-                                textareaRefs.current[cellKey] = el
-                                autoResizeTextarea(el)
-                              }}
-                              value={value}
-                              spellCheck={false}
-                              onChange={(e) => {
-                                setCellValue(row.id, column.id, e.target.value)
-                                autoResizeTextarea(e.currentTarget)
-                              }}
-                              onBlur={() => setEditingCellKey(null)}
-                              autoFocus
-                              className="block w-full resize-none overflow-hidden border-0 bg-[#fffdf9] px-2 py-2 text-sm leading-5 text-[#3f382f] outline-none"
-                              style={{ minHeight: 56 }}
-                            />
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (canManage) {
-                                  setEditingCellKey(cellKey)
-                                }
-                              }}
-                              title={canManage ? t.clickToEdit : undefined}
-                              className={`block w-full px-2 py-2 text-left text-sm leading-5 text-[#3f382f] outline-none ${
-                                canManage ? 'cursor-text' : 'cursor-default'
-                              }`}
-                              style={{
-                                minHeight: 56,
-                                whiteSpace: 'pre-wrap',
-                                wordBreak: 'break-word',
-                              }}
-                            >
-                              {diffHighlightedParts(baselineValue, value)}
-                            </button>
-                          )}
-                        </td>
-                      )
-                    })}
-
-                    <td className="border-r border-b border-[#e3dbcf] p-2 align-top">
-                      <div className="flex min-h-[56px] items-start justify-center pt-2">
-                        <select
-                          value={row.progress}
-                          disabled={!canManage}
-                          onChange={(e) =>
-                            setRowProgress(row.id, e.target.value as ProgressType)
-                          }
-                          className="h-9 border border-[#d7cec1] bg-white px-3 text-sm disabled:bg-[#f7f4ef] disabled:text-[#7f776c]"
-                        >
-                          <option value="진행중">{t.inProgress}</option>
-                          <option value="완료">{t.done}</option>
-                        </select>
-                      </div>
-                    </td>
-
-                    {canManage && (
-                      <td className="border-b border-[#e3dbcf] p-2 align-top">
-                        <div className="flex min-h-[56px] items-start justify-center gap-2 pt-2">
-                          <button
-                            type="button"
-                            onClick={handleManualSave}
-                            disabled={saving}
-                            className="inline-flex h-9 flex-1 items-center justify-center gap-2 border border-[#d7cec1] bg-white px-3 text-sm font-medium text-[#3c342c] transition hover:bg-[#f7f2eb] disabled:opacity-50"
+                      <td className="border-r border-b border-[#e3dbcf] p-2 align-top">
+                        <div className="flex min-h-[56px] items-start justify-center pt-2">
+                          <select
+                            value={row.progress}
+                            disabled={!canManage}
+                            onChange={(e) =>
+                              setRowProgress(row.id, e.target.value as ProgressType)
+                            }
+                            className="h-9 border border-[#d7cec1] bg-white px-3 text-sm disabled:bg-[#f7f4ef] disabled:text-[#7f776c]"
                           >
-                            {saving ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Save className="h-4 w-4" />
-                            )}
-                            {t.save}
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => deleteRow(row.id)}
-                            className="inline-flex h-9 flex-1 items-center justify-center gap-2 border border-[#e3c9c4] bg-white px-3 text-sm font-medium text-[#8f3e35] transition hover:bg-[#fff7f6]"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            {t.delete}
-                          </button>
+                            <option value="진행중">{t.inProgress}</option>
+                            <option value="완료">{t.done}</option>
+                          </select>
                         </div>
                       </td>
-                    )}
-                  </tr>
-                ))}
 
-                {filteredRows.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={
-                        sortedColumns.length +
-                        2 +
-                        (showBrandColumn ? 1 : 0) +
-                        (canManage ? 1 : 0)
-                      }
-                      className="px-6 py-20 text-center text-sm text-[#9e9487]"
-                    >
-                      {t.noResult}
-                    </td>
-                  </tr>
-                )}
+                      {canManage && (
+                        <td className="border-b border-[#e3dbcf] p-2 align-top">
+                          <div className="flex min-h-[56px] items-start justify-center gap-2 pt-2">
+                            <button
+                              type="button"
+                              onClick={handleManualSave}
+                              disabled={saving}
+                              className="inline-flex h-9 flex-1 items-center justify-center gap-2 border border-[#d7cec1] bg-white px-3 text-sm font-medium text-[#3c342c] transition hover:bg-[#f7f2eb] disabled:opacity-50"
+                            >
+                              {saving ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Save className="h-4 w-4" />
+                              )}
+                              {t.save}
+                            </button>
 
-                {canManage && selectedBrandId !== 'ALL' && (
-                  <tr>
-                    <td
-                      colSpan={
-                        sortedColumns.length +
-                        2 +
-                        (showBrandColumn ? 1 : 0) +
-                        (canManage ? 1 : 0)
-                      }
-                      className="border-t border-[#d7cec1] bg-[#f9f6f1] px-4 py-6"
-                    >
-                      <button
-                        type="button"
-                        onClick={addRow}
-                        className="flex w-full items-center justify-center gap-2 border border-dashed border-[#cfc6b8] bg-white py-4 text-sm font-medium text-[#3c342c] transition hover:bg-[#f7f2eb]"
+                            <button
+                              type="button"
+                              onClick={() => deleteRow(row.id)}
+                              className="inline-flex h-9 flex-1 items-center justify-center gap-2 border border-[#e3c9c4] bg-white px-3 text-sm font-medium text-[#8f3e35] transition hover:bg-[#fff7f6]"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              {t.delete}
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+
+                  {filteredRows.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={
+                          sortedColumns.length +
+                          2 +
+                          (showBrandColumn ? 1 : 0) +
+                          (canManage ? 1 : 0)
+                        }
+                        className="px-6 py-20 text-center text-sm text-[#9e9487]"
                       >
-                        <Plus className="h-4 w-4" />
-                        {t.addRow}
-                      </button>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                        {t.noResult}
+                      </td>
+                    </tr>
+                  )}
+
+                  {canManage && selectedBrandId !== 'ALL' && (
+                    <tr>
+                      <td
+                        colSpan={
+                          sortedColumns.length +
+                          2 +
+                          (showBrandColumn ? 1 : 0) +
+                          (canManage ? 1 : 0)
+                        }
+                        className="border-t border-[#d7cec1] bg-[#f9f6f1] px-4 py-6"
+                      >
+                        <button
+                          type="button"
+                          onClick={addRow}
+                          className="flex w-full items-center justify-center gap-2 border border-dashed border-[#cfc6b8] bg-white py-4 text-sm font-medium text-[#3c342c] transition hover:bg-[#f7f2eb]"
+                        >
+                          <Plus className="h-4 w-4" />
+                          {t.addRow}
+                        </button>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>

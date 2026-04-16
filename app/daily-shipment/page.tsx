@@ -15,6 +15,8 @@ import {
   Search,
   Trash2,
   X,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react'
 
 type RoleType = 'admin' | 'manager' | 'buyer' | ''
@@ -37,6 +39,11 @@ type DailyShipmentBox = {
 }
 
 type QuickRangeType = 'today' | 'last7' | 'thisMonth' | ''
+
+const MOBILE_INITIAL_ZOOM = 0.8
+const MOBILE_MIN_ZOOM = 0.5
+const MOBILE_MAX_ZOOM = 1.2
+const MOBILE_ZOOM_STEP = 0.1
 
 function getKstDateString(date = new Date()) {
   const utc = date.getTime() + date.getTimezoneOffset() * 60 * 1000
@@ -127,10 +134,15 @@ export default function DailyShipmentPage() {
   const [newShipDate, setNewShipDate] = useState(getKstDateString())
   const [openDates, setOpenDates] = useState<Record<string, boolean>>({})
 
+  const [isMobileView, setIsMobileView] = useState(false)
+  const [mobileZoom, setMobileZoom] = useState(1)
+
   const isAdmin = role === 'admin'
   const isManager = role === 'manager'
   const isBuyer = role === 'buyer'
   const canManage = isAdmin || isManager
+
+  const mobileZoomPercent = `${Math.round(mobileZoom * 100)}%`
 
   const brandMap = useMemo(() => {
     return brands.reduce<Record<string, string>>((acc, brand) => {
@@ -188,6 +200,48 @@ export default function DailyShipmentPage() {
       return next
     })
   }, [groupedDates])
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 639px)')
+
+    const applyState = (matches: boolean) => {
+      setIsMobileView(matches)
+      setMobileZoom(matches ? MOBILE_INITIAL_ZOOM : 1)
+    }
+
+    applyState(mediaQuery.matches)
+
+    const handleChange = (e: MediaQueryListEvent) => {
+      applyState(e.matches)
+    }
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', handleChange)
+      return () => mediaQuery.removeEventListener('change', handleChange)
+    }
+
+    mediaQuery.addListener(handleChange)
+    return () => mediaQuery.removeListener(handleChange)
+  }, [])
+
+  const zoomOutMobile = () => {
+    if (!isMobileView) return
+    setMobileZoom((prev) =>
+      Number(Math.max(MOBILE_MIN_ZOOM, prev - MOBILE_ZOOM_STEP).toFixed(2))
+    )
+  }
+
+  const zoomInMobile = () => {
+    if (!isMobileView) return
+    setMobileZoom((prev) =>
+      Number(Math.min(MOBILE_MAX_ZOOM, prev + MOBILE_ZOOM_STEP).toFixed(2))
+    )
+  }
+
+  const resetMobileZoom = () => {
+    if (!isMobileView) return
+    setMobileZoom(MOBILE_INITIAL_ZOOM)
+  }
 
   const loadBrands = async () => {
     const { data, error } = await supabase
@@ -722,6 +776,40 @@ export default function DailyShipmentPage() {
           </div>
         </div>
 
+        {isMobileView && (
+          <div className="mb-4 border border-[#d7cec1] bg-white sm:hidden">
+            <div className="flex items-center justify-end gap-2 px-3 py-2">
+              <button
+                type="button"
+                onClick={zoomOutMobile}
+                disabled={mobileZoom <= MOBILE_MIN_ZOOM}
+                className="inline-flex h-9 items-center justify-center gap-1 border border-[#cfc6b8] bg-white px-3 text-xs font-medium text-[#3c342c] transition hover:bg-[#f7f1e8] disabled:opacity-40"
+              >
+                <Minimize2 className="h-3.5 w-3.5" />
+                축소
+              </button>
+
+              <button
+                type="button"
+                onClick={resetMobileZoom}
+                className="inline-flex h-9 items-center justify-center border border-[#cfc6b8] bg-white px-3 text-xs font-medium text-[#3c342c] transition hover:bg-[#f7f1e8]"
+              >
+                {mobileZoomPercent}
+              </button>
+
+              <button
+                type="button"
+                onClick={zoomInMobile}
+                disabled={mobileZoom >= MOBILE_MAX_ZOOM}
+                className="inline-flex h-9 items-center justify-center gap-1 border border-[#cfc6b8] bg-white px-3 text-xs font-medium text-[#3c342c] transition hover:bg-[#f7f1e8] disabled:opacity-40"
+              >
+                <Maximize2 className="h-3.5 w-3.5" />
+                확대
+              </button>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="border border-[#ddd3c5] bg-white px-6 py-14 text-center text-sm text-[#6c6257]">
             불러오는 중...
@@ -773,168 +861,197 @@ export default function DailyShipmentPage() {
                   </div>
 
                   {isOpen && (
-                    <div className="overflow-x-auto">
-                      <table className="w-full min-w-[980px] table-fixed border-collapse">
-                        <colgroup>
-                          <col style={{ width: '110px' }} />
-                          <col style={{ width: '140px' }} />
-                          <col style={{ width: '170px' }} />
-                          <col style={{ width: '470px' }} />
-                          <col style={{ width: '120px' }} />
-                          {canManage && <col style={{ width: '120px' }} />}
-                        </colgroup>
+                    <>
+                      <div
+                        className="overflow-x-auto overflow-y-hidden touch-pan-x touch-pan-y"
+                        style={{
+                          WebkitOverflowScrolling: 'touch',
+                          scrollbarWidth: 'thin',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: isMobileView ? `${100 / mobileZoom}%` : '100%',
+                            transform: isMobileView ? `scale(${mobileZoom})` : 'none',
+                            transformOrigin: 'top left',
+                          }}
+                        >
+                          <table className="w-full min-w-[980px] table-fixed border-collapse">
+                            <colgroup>
+                              <col style={{ width: '110px' }} />
+                              <col style={{ width: '140px' }} />
+                              <col style={{ width: '170px' }} />
+                              <col style={{ width: '470px' }} />
+                              <col style={{ width: '120px' }} />
+                              {canManage && <col style={{ width: '120px' }} />}
+                            </colgroup>
 
-                        <thead>
-                          <tr className="bg-[#f5efe7]">
-                            <th className="border-b border-r border-[#d7cec1] px-3 py-3 text-center text-sm font-semibold text-[#2f2a24]">
-                              날짜
-                            </th>
-                            <th className="border-b border-r border-[#d7cec1] px-3 py-3 text-center text-sm font-semibold text-[#2f2a24]">
-                              박스 번호
-                            </th>
-                            <th className="border-b border-r border-[#d7cec1] px-3 py-3 text-center text-sm font-semibold text-[#2f2a24]">
-                              브랜드
-                            </th>
-                            <th className="border-b border-r border-[#d7cec1] px-3 py-3 text-center text-sm font-semibold text-[#2f2a24]">
-                              수량 세부 사항
-                            </th>
-                            <th className="border-b border-r border-[#d7cec1] px-3 py-3 text-center text-sm font-semibold text-[#2f2a24]">
-                              총 수량
-                            </th>
-                            {canManage && (
-                              <th className="border-b border-[#d7cec1] px-3 py-3 text-center text-sm font-semibold text-[#2f2a24]">
-                                관리
-                              </th>
-                            )}
-                          </tr>
-                        </thead>
-
-                        <tbody>
-                          {dateBoxes.map((box, rowIndex) => {
-                            const brandName = box.brand_id
-                              ? brandMap[box.brand_id] || '-'
-                              : '-'
-                            const textKey = `${box.id}_detail`
-                            const isDeleting = deletingBoxId === box.id
-
-                            return (
-                              <tr
-                                key={box.id}
-                                className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-[#fcfaf7]'}
-                              >
-                                <td className="border-r border-b border-[#e3dbcf] px-3 py-3 align-top text-center text-sm text-[#4a433b]">
-                                  {rowIndex === 0 ? formatDateLabel(date) : ''}
-                                </td>
-
-                                <td className="border-r border-b border-[#e3dbcf] px-3 py-3 align-top text-center text-sm font-medium text-[#2f2a24]">
-                                  {box.box_number}번 박스
-                                </td>
-
-                                <td className="border-r border-b border-[#e3dbcf] px-3 py-3 align-top">
-                                  {canManage ? (
-                                    <select
-                                      value={box.brand_id || ''}
-                                      onChange={(e) =>
-                                        updateBoxField(
-                                          box.id,
-                                          'brand_id',
-                                          e.target.value || null
-                                        )
-                                      }
-                                      className="h-9 w-full border border-[#d7cec1] bg-white px-2 text-sm outline-none focus:border-[#2f2a24]"
-                                    >
-                                      <option value="">브랜드 선택</option>
-                                      {brands.map((brand) => (
-                                        <option key={brand.id} value={brand.id}>
-                                          {brand.name}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  ) : (
-                                    <div className="pt-2 text-sm text-[#3f382f]">
-                                      {brandName}
-                                    </div>
-                                  )}
-                                </td>
-
-                                <td className="border-r border-b border-[#e3dbcf] p-0 align-top">
-                                  {canManage ? (
-                                    <textarea
-                                      ref={(el) => {
-                                        textareaRefs.current[textKey] = el
-                                        autoResizeTextarea(el)
-                                      }}
-                                      value={box.detail_text || ''}
-                                      onChange={(e) => {
-                                        updateBoxField(
-                                          box.id,
-                                          'detail_text',
-                                          e.target.value
-                                        )
-                                        autoResizeTextarea(e.currentTarget)
-                                      }}
-                                      placeholder="수량 세부 사항 입력"
-                                      className="block w-full resize-none overflow-hidden border-0 bg-transparent px-3 py-3 text-sm leading-6 text-[#3f382f] outline-none"
-                                    />
-                                  ) : (
-                                    <div
-                                      className="px-3 py-3 text-sm leading-6 text-[#3f382f]"
-                                      style={{
-                                        whiteSpace: 'pre-wrap',
-                                        wordBreak: 'break-word',
-                                      }}
-                                    >
-                                      {box.detail_text || ''}
-                                    </div>
-                                  )}
-                                </td>
-
-                                <td className="border-r border-b border-[#e3dbcf] px-3 py-3 align-top">
-                                  {canManage ? (
-                                    <input
-                                      type="number"
-                                      min={0}
-                                      value={box.total_quantity ?? ''}
-                                      onChange={(e) => {
-                                        const value = e.target.value
-                                        updateBoxField(
-                                          box.id,
-                                          'total_quantity',
-                                          value === '' ? null : Number(value)
-                                        )
-                                      }}
-                                      className="h-9 w-full border border-[#d7cec1] bg-white px-2 text-center text-sm outline-none focus:border-[#2f2a24]"
-                                    />
-                                  ) : (
-                                    <div className="pt-2 text-center text-sm font-medium text-[#2f2a24]">
-                                      {box.total_quantity ?? '-'}
-                                    </div>
-                                  )}
-                                </td>
-
+                            <thead>
+                              <tr className="bg-[#f5efe7]">
+                                <th className="border-b border-r border-[#d7cec1] px-3 py-3 text-center text-sm font-semibold text-[#2f2a24]">
+                                  날짜
+                                </th>
+                                <th className="border-b border-r border-[#d7cec1] px-3 py-3 text-center text-sm font-semibold text-[#2f2a24]">
+                                  박스 번호
+                                </th>
+                                <th className="border-b border-r border-[#d7cec1] px-3 py-3 text-center text-sm font-semibold text-[#2f2a24]">
+                                  브랜드
+                                </th>
+                                <th className="border-b border-r border-[#d7cec1] px-3 py-3 text-center text-sm font-semibold text-[#2f2a24]">
+                                  수량 세부 사항
+                                </th>
+                                <th className="border-b border-r border-[#d7cec1] px-3 py-3 text-center text-sm font-semibold text-[#2f2a24]">
+                                  총 수량
+                                </th>
                                 {canManage && (
-                                  <td className="border-b border-[#e3dbcf] px-2 py-3 align-top">
-                                    <button
-                                      type="button"
-                                      onClick={() => deleteBox(box)}
-                                      disabled={isDeleting}
-                                      className="inline-flex h-9 w-full items-center justify-center gap-2 border border-[#e2c9c4] bg-white px-2 text-xs font-medium text-[#8e3f35] transition hover:bg-[#fff6f4] disabled:opacity-50"
-                                    >
-                                      {isDeleting ? (
-                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                      ) : (
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                      )}
-                                      삭제
-                                    </button>
-                                  </td>
+                                  <th className="border-b border-[#d7cec1] px-3 py-3 text-center text-sm font-semibold text-[#2f2a24]">
+                                    관리
+                                  </th>
                                 )}
                               </tr>
-                            )
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
+                            </thead>
+
+                            <tbody>
+                              {dateBoxes.map((box, rowIndex) => {
+                                const brandName = box.brand_id
+                                  ? brandMap[box.brand_id] || '-'
+                                  : '-'
+                                const textKey = `${box.id}_detail`
+                                const isDeleting = deletingBoxId === box.id
+
+                                return (
+                                  <tr
+                                    key={box.id}
+                                    className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-[#fcfaf7]'}
+                                  >
+                                    <td className="border-r border-b border-[#e3dbcf] px-3 py-3 align-top text-center text-sm text-[#4a433b]">
+                                      {rowIndex === 0 ? formatDateLabel(date) : ''}
+                                    </td>
+
+                                    <td className="border-r border-b border-[#e3dbcf] px-3 py-3 align-top text-center text-sm font-medium text-[#2f2a24]">
+                                      {box.box_number}번 박스
+                                    </td>
+
+                                    <td className="border-r border-b border-[#e3dbcf] px-3 py-3 align-top">
+                                      {canManage ? (
+                                        <select
+                                          value={box.brand_id || ''}
+                                          onChange={(e) =>
+                                            updateBoxField(
+                                              box.id,
+                                              'brand_id',
+                                              e.target.value || null
+                                            )
+                                          }
+                                          className="h-9 w-full border border-[#d7cec1] bg-white px-2 text-sm outline-none focus:border-[#2f2a24]"
+                                        >
+                                          <option value="">브랜드 선택</option>
+                                          {brands.map((brand) => (
+                                            <option key={brand.id} value={brand.id}>
+                                              {brand.name}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      ) : (
+                                        <div className="pt-2 text-sm text-[#3f382f]">
+                                          {brandName}
+                                        </div>
+                                      )}
+                                    </td>
+
+                                    <td className="border-r border-b border-[#e3dbcf] p-0 align-top">
+                                      {canManage ? (
+                                        <textarea
+                                          ref={(el) => {
+                                            textareaRefs.current[textKey] = el
+                                            autoResizeTextarea(el)
+                                          }}
+                                          value={box.detail_text || ''}
+                                          onChange={(e) => {
+                                            updateBoxField(
+                                              box.id,
+                                              'detail_text',
+                                              e.target.value
+                                            )
+                                            autoResizeTextarea(e.currentTarget)
+                                          }}
+                                          placeholder="수량 세부 사항 입력"
+                                          className="block w-full resize-none overflow-hidden border-0 bg-transparent px-3 py-3 text-sm leading-6 text-[#3f382f] outline-none"
+                                        />
+                                      ) : (
+                                        <div
+                                          className="px-3 py-3 text-sm leading-6 text-[#3f382f]"
+                                          style={{
+                                            whiteSpace: 'pre-wrap',
+                                            wordBreak: 'break-word',
+                                          }}
+                                        >
+                                          {box.detail_text || ''}
+                                        </div>
+                                      )}
+                                    </td>
+
+                                    <td className="border-r border-b border-[#e3dbcf] px-3 py-3 align-top">
+                                      {canManage ? (
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          value={box.total_quantity ?? ''}
+                                          onChange={(e) => {
+                                            const value = e.target.value
+                                            updateBoxField(
+                                              box.id,
+                                              'total_quantity',
+                                              value === '' ? null : Number(value)
+                                            )
+                                          }}
+                                          className="h-9 w-full border border-[#d7cec1] bg-white px-2 text-center text-sm outline-none focus:border-[#2f2a24]"
+                                        />
+                                      ) : (
+                                        <div className="pt-2 text-center text-sm font-medium text-[#2f2a24]">
+                                          {box.total_quantity ?? '-'}
+                                        </div>
+                                      )}
+                                    </td>
+
+                                    {canManage && (
+                                      <td className="border-b border-[#e3dbcf] px-2 py-3 align-top">
+                                        <button
+                                          type="button"
+                                          onClick={() => deleteBox(box)}
+                                          disabled={isDeleting}
+                                          className="inline-flex h-9 w-full items-center justify-center gap-2 border border-[#e2c9c4] bg-white px-2 text-xs font-medium text-[#8e3f35] transition hover:bg-[#fff6f4] disabled:opacity-50"
+                                        >
+                                          {isDeleting ? (
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                          ) : (
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                          )}
+                                          삭제
+                                        </button>
+                                      </td>
+                                    )}
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      {canManage && (
+                        <div className="border-t border-[#d7cec1] bg-[#f9f6f1] px-4 py-4">
+                          <button
+                            type="button"
+                            onClick={() => addBox(date)}
+                            className="flex w-full items-center justify-center gap-2 border border-dashed border-[#cfc6b8] bg-white py-3 text-sm font-medium text-[#3c342c] transition hover:bg-[#f7f1e8]"
+                          >
+                            <Plus className="h-4 w-4" />
+                            박스 추가
+                          </button>
+                        </div>
+                      )}
+                    </>
                   )}
                 </section>
               )
